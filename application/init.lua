@@ -1,103 +1,144 @@
---print(wifi.sta.getip())
---move everything to lc submodules
---log  datex5          XY.LL.MM.TT.HH
---ex   00.117.86400    XY.22.33.22.55
---       21 474 83648
+CASCADE_DEVICE_ID = 'cjfmlb3k40can0b825t0wzl5b'
+CASCADE_URL = 'https://cascade-backend.herokuapp.com'
+SCHEDULE = "* * * * *"
 
-print(' chip:',node.chipid(),' heap:',node.heap())
+JSON_HEADERS = 'Accept-Encoding: gzip, deflate, br\r\nContent-Type: application/json\r\nAccept: application/json\r\n'
 
-wifi.eventmon.register(wifi.eventmon.STA_GOT_IP,
-function(T)
-     print("\n\tSTA_GOT_IP".."\n\tIP: "..T.IP.."\n\tMask: "..T.netmask.."\n\tGW "..T.gateway)
-     sntp.sync(nil, nil, nil, 1)
-     mytimer = tmr.create()
-     mytimer:register(20000, tmr.ALARM_SINGLE,
-          function()
-               dofile('box.lua')
-
-                if pcall(box.sensor_temp) then
-                    print("Temp sent OK")
-                 else
-                    print("Temp err" )
-                 end
-                box.i2c_scan(1,2)
-
-               --box.sensor_light()
-               box = nil
-          end)
-     --mytimer:register(20000, tmr.ALARM_SINGLE, function() print("ALARM 20k") end)
-     mytimer:start()
-     --out=ebox.home_ping(T.IP)
-end)
-
-wifi.setmode(wifi.STATION)
---wifi.sta.config {ssid="Teo-55A397-Greitasis", pwd="CA5A698B5C"}
-wifi.sta.config {ssid="uabnamai", pwd="E7A0A3D980"}
-wifi.sta.connect()
-
--- in you init.lua:
-if adc.force_init_mode(adc.INIT_ADC)
-then
-  node.restart()
-  return -- don't bother continuing, the restart is scheduled
+obtainWifi = function(cb) 
+    print('Getting wifi...')
+    
+    wifi.setmode(wifi.STATION)
+    wifi.sta.config {ssid="uabnamai", pwd="E7A0A3D980"}
+    wifi.sta.connect(function()
+        tmr.alarm(1, 1000, 1, function()
+            if wifi.sta.getip() == nil then
+                print("IP unavailable, Waiting...")
+            else
+                tmr.stop(1)
+                print("ESP8266 mode is: " .. wifi.getmode())
+                print("The module MAC address is: " .. wifi.ap.getmac())
+                print("Config done, IP is "..wifi.sta.getip())
+                cb()
+            end
+        end)
+    end)
 end
---
 
+gql = function(body, cb) 
+    http.post(CASCADE_URL, JSON_HEADERS, sjson.encode(body), function(code, response)
+        cb(sjson.decode(response))
+    end)
+end
 
--- Serving static files
-dofile('httpServer.lua')
-httpServer:listen(80)
+getSensors = function(cb)
+    gql({
+      query = [[
+        query($deviceId: ID!) {
+            device(where: {
+              id: $deviceId
+            }) {
+                sensors {
+                    id
 
--- Custom API
--- Get text/html
-httpServer:use('/', function(req, res)
-	res:send('Hello ') -- /welcome?name=doge
-end)
+                    sensorType {
+                        name
+                    }
+                }
+            }
+        }
+        ]],
+      variables = {
+        deviceId = CASCADE_DEVICE_ID
+      }
+    }, cb)
+end
 
+sensors = {}
 
-httpServer:use('/box/ping', function(req, res)
-     dofile('box.lua')
-     box.home_ping(T.IP)
-     box = nil
-     res:send('Hello ')
-end)
+saveSensors = function(response)
+    print('Saving sensors...')
+    sensors = {}
+    for key, val in pairs(response.data.device.sensors) do
+        sensors[val.sensorType.name] = val.id
+    end
+    print(sensors)
+    print('Sensors saved.')
+end
 
-httpServer:use('/box/light', function(req, res)
-     dofile('box.lua')
-     out=box.sensor_light()
-     box = nil
-	res:send(out)
-end)
+logs = {}
 
-httpServer:use('/box/temp', function(req, res)
-     --dofile('box.lua')
-     --out=box.sensor_temp()
-     --box = nil
-	--res:send(out)
-     res:send('Hello ')
-end)
+UPLOAD_LOG_QUERY = [[
+  mutation($sensorId: ID!, $value: Float!) {
+    createLog(data: {
+      sensor: {
+        connect: {
+          id: $sensorId
+        },
+      },
+      value: $value,
+    }) {
+      id
+    }
+  }
+]]
 
-httpServer:use('/box/put', function(req, res)
-     --dofile('box.lua')
-     --box.sensor()
-     --box = nil
-	res:send('Hello ') -- /welcome?name=doge
-end)
+logSensor = function(sensorName, value)
+    sensorId = sensors[sensorName]
 
--- Get file
-httpServer:use('/box/log', function(req, res)
-	res:sendFile('local.log')
-end)
+    table.insert(logs, {
+        sensorId = sensorId,
+        value = value,
+    })
+    print(sensorId)
+    print(value)
+    gql({
+      query = UPLOAD_LOG_QUERY,
+      variables = {
+        sensorId = sensorId,
+        value = value,
+      },
+    }, function(response)
+      print(response)
+    end)
+end
 
--- Get json
-httpServer:use('/json', function(req, res)
-	res:type('application/json')
-	res:send('{"doge": "smile"}')
-end)
+logHumidity = function()
+    print('Logging Humidity')
+    alt, sda, scl =120, 1, 2                --altitude of the measurement place, GPIO2, GPIO0
+    i2c.setup(0, sda, scl, i2c.SLOW)        -- call i2c.setup() only once
+    bme280.setup()
+    humidity, temperature = bme280.humi()
+    print(bme280.humi())
+    print(humidity)
+    print(temperature)
+    logSensor('Humidity', humidity)
+end
 
+initLogging = function()
+    print('Starting to log...')
+    logHumidity()
+end
 
-cron.schedule("*/10 * * * *", function(e)
-     --dofile('box.lua')
-     --box.sensor()
-     --box = nil
-end)
+initUploading = function()
+    print('Starting to upload...')
+
+    print(logs[0])
+
+    print(logs)
+end
+
+obtainWifi(
+    function()
+        getSensors(
+            function(data)
+                saveSensors(data)
+                print(sjson.encode(sensors))
+
+                initLogging()
+                initUploading()
+            end
+        )
+    end
+)
+
+--print("got sensors")
