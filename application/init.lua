@@ -7,30 +7,45 @@ DB_LOCATION = 'db.json'
 WIFI_SSID = "uabnamai"
 WIFI_PWD = "E7A0A3D980"
 
---WIFI_SSID = "Devyni Nol Astuoni"
---WIFI_PWD = "iknowhowtotype908"
-
 JSON_HEADERS = 'Accept-Encoding: gzip, deflate, br\r\nContent-Type: application/json\r\nAccept: application/json\r\n'
-
-sntp.sync(nil, nil, nil, 1)
 
 ensureDb = function()
     if file.exists(DB_LOCATION) then
         print("DB exists")
     else
         print('DB doesnt exist. Creating...')
-        writeDb = file.open('db.json', 'w+')
+        writeDb = file.open(DB_LOCATION, 'w+')
         writeDb:write(sjson.encode({ logs= {} }))
         writeDb:close()
     end
 end
 
+sleepWifi = function()
+    print('Entering wifi sleep')
+    wifi.setmode(wifi.NULLMODE)
+end
+
+syncTime = function(cb)
+    print('Syncing time...')
+
+    sntp.sync(nil, function()
+        print('Time synced')
+        cb()
+    end)
+end
+
 obtainWifi = function(cb)
     print('Getting wifi...')
 
+    if wifi.sta.status() == wifi.STA_GOTIP then
+        print('Already have wifi')
+        return cb()
+    end
+
     wifi.setmode(wifi.STATION)
-    wifi.sta.config({ ssid= WIFI_SSID, pwd = WIFI_PWD })
+    wifi.sta.config({ ssid= WIFI_SSID, pwd = WIFI_PWD, auto = false })
     print('Configed.')
+
     wifi.sta.connect(function()
         print('Connecting...')
         tmr.alarm(1, 1000, 1, function()
@@ -42,7 +57,8 @@ obtainWifi = function(cb)
                 print("ESP8266 mode is: " .. wifi.getmode())
                 print("The module MAC address is: " .. wifi.ap.getmac())
                 print("Config done, IP is "..wifi.sta.getip())
-                cb()
+
+                syncTime(cb)
             end
         end)
     end)
@@ -86,7 +102,10 @@ getSensors = function(cb)
           variables = {
             deviceId = CASCADE_DEVICE_ID
           }
-        }, cb)
+        }, function(response)
+            sleepWifi()
+            cb(response)
+        end)
     end)
 end
 
@@ -124,7 +143,7 @@ insertLogIntoDb = function(log)
     ensureDb()
     print('Inserting', sjson.encode(log))
 
-    readDb = file.open("db.json", "r")
+    readDb = file.open(DB_LOCATION, "r")
 
     originalJson = readDb:read()
     readDb:close()
@@ -135,7 +154,7 @@ insertLogIntoDb = function(log)
 
     result = sjson.encode(originalDb)
 
-    writeDb = file.open('db.json', 'w+')
+    writeDb = file.open(DB_LOCATION, 'w+')
     writeDb:write(result)
     writeDb:close()
 
@@ -145,7 +164,7 @@ end
 removeLogFromDb = function(i)
     ensureDb()
 
-    readDb = file.open("db.json", "r")
+    readDb = file.open(DB_LOCATION, "r")
 
     originalJson = readDb:read()
     readDb:close()
@@ -156,7 +175,7 @@ removeLogFromDb = function(i)
 
     result = sjson.encode(originalDb)
 
-    writeDb = file.open('db.json', 'w+')
+    writeDb = file.open(DB_LOCATION, 'w+')
     writeDb:write(result)
     writeDb:close()
 
@@ -166,7 +185,7 @@ end
 dbLogs = function()
     ensureDb()
 
-    readDb = file.open("db.json", "r")
+    readDb = file.open(DB_LOCATION, "r")
 
     originalJson = readDb:read()
     readDb:close()
@@ -202,6 +221,10 @@ logPressure = function()
     logSensor('Pressure', pressure)
 end
 
+logVdd33 = function()
+    logSensor('Vdd33', adc.readvdd33())
+end
+
 initSensors= function()
     alt, sda, scl =120, 1, 2                --altitude of the measurement place, GPIO2, GPIO0
     i2c.setup(0, sda, scl, i2c.SLOW)        -- call i2c.setup() only once
@@ -220,6 +243,8 @@ logSensors = function()
         logTemperature()
       elseif key == 'Pressure' then
         logPressure()
+      elseif key == 'Vdd33' then
+        logVdd33()
       end
 
       print('Logged ', key)
@@ -229,7 +254,6 @@ end
 initLogging = function()
     cron.schedule(SENSOR_SCHEDULE, function(e)
       logSensors()
-      logHumidity()
     end)
 end
 
@@ -246,6 +270,7 @@ uploadFirstLog = function()
   first = dbLogs()[1]
 
   if (not first) then
+    sleepWifi()
     return print('No more logs to upload')
   end
 
