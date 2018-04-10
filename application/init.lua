@@ -60,6 +60,11 @@ gql = function(body, cb)
     end)
 end
 
+currentReadingTime = function()
+    tm = rtctime.epoch2cal(rtctime.get())
+    return string.format("%04d-%02d-%02dT%02d:%02d:%02d.000Z", tm["year"], tm["mon"], tm["day"], tm["hour"], tm["min"], tm["sec"])
+end
+
 getSensors = function(cb)
     obtainWifi(function()
         gql({
@@ -100,7 +105,7 @@ end
 logs = {}
 
 UPLOAD_LOG_QUERY = [[
-  mutation($sensorId: ID!, $value: Float!) {
+  mutation($sensorId: ID!, $value: Float!, $readingTime: DateTime!) {
     createLog(data: {
       sensor: {
         connect: {
@@ -108,6 +113,7 @@ UPLOAD_LOG_QUERY = [[
         },
       },
       value: $value,
+      readingTime: $readingTime,
     }) {
       id
     }
@@ -116,6 +122,7 @@ UPLOAD_LOG_QUERY = [[
 
 insertLogIntoDb = function(log)
     ensureDb()
+    print('Inserting', sjson.encode(log))
 
     readDb = file.open("db.json", "r")
 
@@ -176,6 +183,7 @@ logSensor = function(sensorName, value)
     insertLogIntoDb({
         sensorId = sensorId,
         value = value,
+        readingTime = currentReadingTime(),
     })
 end
 
