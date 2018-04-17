@@ -16,7 +16,6 @@ function uploadAll()
     
       print('Unuploaded logs exist...')
       require('upload')
-      print('after upload load', node.heap())
       
       upload(first, function(data)
         package.loaded['gql'] = nil
@@ -25,7 +24,7 @@ function uploadAll()
         
         print('uploaded', node.heap())
         require('deleteLogFromDb')
-        deleteLogFromDb(1)
+        deleteLogFromDb(first)
         package.loaded['deleteLogFromDb'] = nil
         deleteLogFromDb = nil
         

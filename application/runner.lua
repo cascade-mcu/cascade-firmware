@@ -1,12 +1,9 @@
 DB_LOCATION = 'db.json'
 
 collectgarbage("setmemlimit", 100)
-require('ensureDb')
-ensureDb()
-package.loaded['ensureDb'] = nil
-ensureDb = nil
 
 sensors = {}
+timings = {}
 
 require('getSensors')
 getSensors(function(data)
@@ -15,6 +12,11 @@ getSensors(function(data)
     package.loaded['saveSensors'] = nil
     saveSensors = nil
     data = nil
+
+    require('ensureDb')
+    ensureDb()
+    package.loaded['ensureDb'] = nil
+    ensureDb = nil
 
     require('initLogging')
     initLogging()

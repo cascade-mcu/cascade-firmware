@@ -3,6 +3,8 @@ function logSensor(sensorName, value)
         return
     end
 
+    print('Logging', sensorName, value)
+
     sensorId = sensors[sensorName]
 
     require('currentReadingTime')

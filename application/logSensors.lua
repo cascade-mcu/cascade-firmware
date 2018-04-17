@@ -1,7 +1,5 @@
 function logSensors()
     for key, val in pairs(sensors) do
-      print('Logging ', key)
-
       if key == 'Humidity' then
            require('logHumidity')
          logHumidity()
@@ -48,7 +46,5 @@ function logSensors()
 
       key = nil
       val = nil
-
-      --print('Logged ', key)
     end
 end

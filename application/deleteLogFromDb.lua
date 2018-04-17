@@ -1,5 +1,6 @@
-function deleteLogFromDb(i)
-    local readDb = file.open(DB_LOCATION, "r")
+function deleteLogFromDb(log)
+    local filename = log.sensorId .. '.json'
+    local readDb = file.open(filename, "r")
 
     local originalJson = readDb:read(10000)
     readDb:close()
@@ -9,15 +10,16 @@ function deleteLogFromDb(i)
     local originalDb = sjson.decode(originalJson)
     originalJson = nil
 
-    table.remove(originalDb.logs, i)
+    table.remove(originalDb.logs, 1)
 
     local result = sjson.encode(originalDb)
     originalDb = nil
 
-    local writeDb = file.open(DB_LOCATION, 'w+')
+    local writeDb = file.open(filename, 'w+')
     writeDb:write(result)
     writeDb:close()
 
     result = nil
     writeDb = nil
+    filename = nil
 end

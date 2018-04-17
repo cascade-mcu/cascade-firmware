@@ -12,6 +12,8 @@ function getSensors(cb)
                 device(where: {
                   id: $deviceId
                 }) {
+                    logEveryInSeconds
+                    uploadEveryInSeconds
                     sensors {
                         id
                         sensorType {

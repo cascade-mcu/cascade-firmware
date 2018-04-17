@@ -1,5 +1,6 @@
 function insertLogIntoDb(log)
-    local readDb = file.open(DB_LOCATION, "r")
+    local filename = log.sensorId .. '.json'
+    local readDb = file.open(filename, "r")
 
     local originalJson = readDb:read(10000)
     readDb:close()
@@ -14,11 +15,12 @@ function insertLogIntoDb(log)
     local result = sjson.encode(originalDb)
     originalDb = nil
 
-    writeDb = file.open(DB_LOCATION, 'w+')
+    writeDb = file.open(filename, 'w+')
     writeDb:write(result)
     writeDb:close()
 
     log = nil
     result = nil
     writeDb = nil
+    filename = nil
 end

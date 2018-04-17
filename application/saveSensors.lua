@@ -5,5 +5,11 @@ function saveSensors(response)
         sensors[val.sensorType.name] = val.id
     end
 
+    timings['log'] = response.data.device.logEveryInSeconds
+    timings['upload'] = response.data.device.uploadEveryInSeconds
+
+    print(sjson.encode(sensors))
+    print(sjson.encode(timings))
+
     print('Sensors saved.')
 end
