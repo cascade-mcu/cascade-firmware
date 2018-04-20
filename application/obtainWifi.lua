@@ -1,6 +1,3 @@
-WIFI_SSID = "uabnamai"
-WIFI_PWD = "E7A0A3D980"
-
 function obtainWifi(cb)
    if wifi.sta.status() == wifi.STA_GOTIP then
         print('Already have wifi')

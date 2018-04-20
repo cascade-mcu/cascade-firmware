@@ -37,6 +37,11 @@ function logSensors()
          logElectricalConductivity()
           package.loaded['logElectricalConductivity'] = nil
           logElectricalConductivity = nil
+       elseif key == 'Ground Temperature' then
+         require('logGroundTemperature')
+         logGroundTemperature()
+          package.loaded['logGroundTemperature'] = nil
+          logGroundTemperature = nil
       elseif key == 'Heap' then
            require('logHeap')
            logHeap()

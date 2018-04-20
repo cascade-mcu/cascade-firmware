@@ -3,5 +3,7 @@
 
 -- Ieva
 CASCADE_DEVICE_ID = 'cjg3fvged77do0b267hqn20mk'
+WIFI_SSID = "uabnamai"
+WIFI_PWD = "E7A0A3D980"
 
 dofile('runner.lc')
