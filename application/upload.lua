@@ -10,7 +10,19 @@ function upload(log, cb)
         
         gql({
             query = [[
-              mutation($sensorId: ID!, $value: Float!, $readingTime: DateTime!) {
+              mutation(
+                $sensorId: ID!, 
+                $value: Float!, 
+                $readingTime: DateTime!, 
+                $deviceId: ID!,
+                $ssid: String,
+                $hostname: String,
+                $address: String,
+                $netmask: String,
+                $gateway: String,
+                $mac: String,
+                $rssi: Float,
+              ) {
                 createLog(data: {
                   sensor: {
                     connect: {
@@ -23,19 +35,21 @@ function upload(log, cb)
                   id
                 }
 
-                createWifiLog(
+                createWifiLog(data: {
                     device: {
                       connect: {
                         id: $deviceId
                       },
                     },
+                    ssid: $ssid,
                     hostname: $hostname,
                     address: $address,
                     netmask: $netmask,
                     gateway: $gateway,
                     mac: $mac,
                     rssi: $rssi
-                ) {
+                }) {
+                    id
                 }
               }
             ]],
