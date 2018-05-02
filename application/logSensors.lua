@@ -47,6 +47,11 @@ function logSensors()
            logHeap()
           package.loaded['logHeap'] = nil
           logHeap = nil
+       elseif key == 'Logs Count' then
+          require('logLogsCount')
+          logLogsCount()
+          package.loaded['logLogsCount'] = nil
+          logLogsCount = nil
       end
 
       key = nil
